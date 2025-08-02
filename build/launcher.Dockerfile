@@ -92,14 +92,17 @@ COPY build/launcher/sshin /usr/local/bin/sshin
 
 # copy shellin command to simplify shell access to the containers
 COPY build/launcher/shellin /usr/local/bin/shellin
-COPY build/podman/launcher /clabernetes/launcher
+COPY build/podman/manager /clabernetes/manager
 
 WORKDIR /clabernetes
 
 RUN mkdir .node
 RUN mkdir .image
 
-COPY --from=builder /clabernetes/build/manager .
+COPY --from=builder /clabernetes/build/manager /clabernetes/manager-wrap
 USER root
 
-ENTRYPOINT ["./launcher"]
+ENTRYPOINT ["./manager"]
+
+# SET globalConfig.deployment.extraEnv on CLAB_RUNTIME=podman
+# original manager wrapped init /build/podman/script
