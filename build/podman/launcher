@@ -1,0 +1,24 @@
+#!/bin/bash
+set -eo pipefail
+
+# Создаем директорию для сокета
+mkdir -p /run/podman
+chmod 755 /run/podman
+
+# Запускаем Podman API socket в фоне
+echo "🟡 Starting Podman API socket..."
+podman system service --time=0 unix:///run/podman/podman.sock &
+
+# Ждем создания сокета (максимум 10 секунд)
+for i in {1..10}; do
+    if [ -S /run/podman/podman.sock ]; then
+        echo "🟢 Podman socket ready"
+        break
+    fi
+    sleep 1
+    [ $i -eq 10 ] && echo "🔴 Failed to start Podman socket" && exit 1
+done
+
+# Запускаем основной процесс
+echo "🚀 Starting clabernetes manager..."
+exec /clabernetes/manager launch "$@"
