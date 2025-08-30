@@ -2,8 +2,8 @@
 set -eo pipefail
 
 # Создаем директорию для сокета
-mkdir -p /run/podman
-chmod 755 /run/podman
+mkdir -p /run/podman && chmod 755 /run/podman
+mkdir -p /etc/cni && mkdir -p /var/lib/docker/cni && mount --bind /var/lib/docker/cni /etc/cni
 
 # Проверяем, существует ли уже рабочий сокет
 if [ -S /run/podman/podman.sock ]; then

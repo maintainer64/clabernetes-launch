@@ -133,7 +133,9 @@ func (m *vxlanManager) runContainerlabVxlanToolsCreate(
 
 	err = cmd.Run()
 	if err != nil {
-		return err
+		// TODO: Костыль чтобы не падать при перезагрузке пода в рантайме
+		m.logger.Infof("ignore error: %s", err)
+		return nil
 	}
 
 	return nil
