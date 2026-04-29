@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package connectivity
 
@@ -21,6 +20,7 @@ const (
 
 type slurpeethManager struct {
 	*common
+
 	cancelChan chan bool
 }
 

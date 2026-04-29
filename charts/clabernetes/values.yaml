@@ -46,7 +46,14 @@ manager:
   # pod affinity settings, directly inserted into manager deployment spec; if not provided basic
   # common-sense anti-affinity is applied.
   affinity: {}
-
+  # restrictedRBAC enables a more restricted RBAC setup for the manager. When enabled, the
+  # ClusterRole given to the manager's ServiceAccount is more limited, and a Role and
+  # RoleBinding are created in each of the namespaces listed in `targetNamespaces` below to
+  # grant extra permissions.
+  # This is needed on OpenShift clusters to prevent default SCC restrictions.
+  restrictedRBAC:
+    enabled: false
+    targetNamespaces: []
 #
 # global config
 #
@@ -193,7 +200,7 @@ ui:
     ingressClass: nginx
     # you really almost certainly gotta do something with this if you want the ingress to work :)
     host: ui.clabernetes.containerlab.dev
-
+    tls: []
 
 #
 # clicker

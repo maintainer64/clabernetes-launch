@@ -1,11 +1,13 @@
 package connectivity
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os/exec"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	clabernetesapisv1alpha1 "github.com/srl-labs/clabernetes/apis/v1alpha1"
@@ -18,8 +20,18 @@ const (
 	resolveServiceSleep       = 10 * time.Second
 )
 
+// sanitizeInterfaceName replaces forward slashes with hyphens in interface names
+// (e.g. "1/1/c1/1" → "1-1-c1-1"), mirroring containerlab's own SanitizeInterfaceName logic.
+// This is necessary because Linux interface names cannot contain "/" characters, so containerlab
+// uses hyphens when creating the host-side veth. The name passed to "containerlab tools vxlan"
+// must match that sanitized name.
+func sanitizeInterfaceName(name string) string {
+	return strings.ReplaceAll(name, "/", "-")
+}
+
 type vxlanManager struct {
 	*common
+
 	currentTunnels map[string]*clabernetesapisv1alpha1.PointToPointTunnel
 }
 
@@ -71,7 +83,7 @@ func (m *vxlanManager) resolveVXLANService(vxlanRemote string) (string, error) {
 	var err error
 
 	for range resolveServiceMaxAttempts {
-		resolvedVxlanRemotes, err = net.LookupIP(vxlanRemote)
+		resolvedVxlanRemotes, err = net.LookupIP(vxlanRemote) //nolint: noctx
 		if err != nil {
 			m.logger.Warnf(
 				"failed resolving remote vxlan endpoint but under max attempts will try"+
@@ -99,7 +111,9 @@ func (m *vxlanManager) resolveVXLANService(vxlanRemote string) (string, error) {
 }
 
 func (m *vxlanManager) runContainerlabVxlanToolsCreate(
-	localNodeName, cntLink, vxlanRemote string,
+	localNodeName,
+	cntLink,
+	vxlanRemote string,
 	vxlanID int,
 ) error {
 	resolvedVxlanRemote, err := m.resolveVXLANService(vxlanRemote)
@@ -109,7 +123,21 @@ func (m *vxlanManager) runContainerlabVxlanToolsCreate(
 
 	m.logger.Debugf("resolved remote vxlan tunnel service address as '%s'", resolvedVxlanRemote)
 
-	cmd := exec.Command( //nolint:gosec
+	vxlanInterfaceName := sanitizeInterfaceName(fmt.Sprintf("%s-%s", localNodeName, cntLink))
+
+	m.logger.Debugf("Attempting to delete existing vxlan interface '%s'", vxlanInterfaceName)
+
+	err = m.runContainerlabVxlanToolsDelete(m.ctx, localNodeName, cntLink)
+	if err != nil {
+		m.logger.Warnf(
+			"failed while deleting existing vxlan interface '%s', error: '%s'",
+			vxlanInterfaceName,
+			err,
+		)
+	}
+
+	cmd := exec.CommandContext( //nolint:gosec
+		m.ctx,
 		"containerlab",
 		"tools",
 		"vxlan",
@@ -119,7 +147,7 @@ func (m *vxlanManager) runContainerlabVxlanToolsCreate(
 		"--id",
 		strconv.Itoa(vxlanID),
 		"--link",
-		fmt.Sprintf("%s-%s", localNodeName, cntLink),
+		vxlanInterfaceName,
 		"--port",
 		strconv.Itoa(clabernetesconstants.VXLANServicePort),
 	)
@@ -142,15 +170,20 @@ func (m *vxlanManager) runContainerlabVxlanToolsCreate(
 }
 
 func (m *vxlanManager) runContainerlabVxlanToolsDelete(
-	localNodeName, cntLink string,
+	ctx context.Context,
+	localNodeName,
+	cntLink string,
 ) error {
-	cmd := exec.Command( //nolint:gosec
+	prefix := sanitizeInterfaceName(fmt.Sprintf("vx-%s-%s", localNodeName, cntLink))
+
+	cmd := exec.CommandContext( //nolint:gosec
+		ctx,
 		"containerlab",
 		"tools",
 		"vxlan",
 		"delete",
 		"--prefix",
-		fmt.Sprintf("vx-%s-%s", localNodeName, cntLink),
+		prefix,
 	)
 
 	m.logger.Debugf(
@@ -190,7 +223,9 @@ func (m *vxlanManager) updateVxlanTunnels(
 		}
 
 		err := m.runContainerlabVxlanToolsDelete(
-			existingTunnel.LocalNode, existingTunnel.LocalInterface,
+			m.ctx,
+			existingTunnel.LocalNode,
+			existingTunnel.LocalInterface,
 		)
 		if err != nil {
 			m.logger.Fatalf(
@@ -218,7 +253,9 @@ func (m *vxlanManager) updateVxlanTunnels(
 			// tunnel for this interface exists but isnt the same as our desired setup, delete the
 			// old tunnel before we create the new one
 			err := m.runContainerlabVxlanToolsDelete(
-				tunnel.LocalNode, tunnel.LocalInterface,
+				m.ctx,
+				tunnel.LocalNode,
+				tunnel.LocalInterface,
 			)
 			if err != nil {
 				m.logger.Fatalf(

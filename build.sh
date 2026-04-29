@@ -1,7 +1,7 @@
 #!/bin/bash
 set -xeuo pipefail
 
-VERSION="0.3.1"
+VERSION="0.5.0"
 IMAGE="docker.io/maintainer64/srl-labs-clabernetes"
 BUILDER="${1:-docker}"
 ARGS="--build-arg VERSION=$VERSION --no-cache --progress=plain"

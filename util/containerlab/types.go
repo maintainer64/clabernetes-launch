@@ -1,5 +1,12 @@
 package containerlab
 
+import (
+	"fmt"
+	"maps"
+
+	claberneteserrors "github.com/srl-labs/clabernetes/errors"
+)
+
 // Config defines lab configuration as it is provided in the YAML file.
 type Config struct {
 	// Lab name
@@ -176,13 +183,16 @@ type NodeDefinition struct {
 	Certificate *CertificateConfig `yaml:"certificate,omitempty"`
 	// Healthcheck configuration
 	Healthcheck *HealthcheckConfig `yaml:"healthcheck,omitempty"`
+	// Network aliases
+	Aliases    []string     `yaml:"aliases,omitempty"`
+	Components []*Component `yaml:"components,omitempty"`
 }
 
 // ConfigDispatcher represents the config of a configuration machine
 // that is responsible to execute configuration commands on the nodes
 // after they started.
 type ConfigDispatcher struct {
-	Vars map[string]interface{} `yaml:"vars,omitempty"`
+	Vars map[string]any `yaml:"vars,omitempty"`
 }
 
 // Extras contains extra node parameters which are not entitled to be part of a generic node config.
@@ -215,16 +225,17 @@ type CertificateConfig struct {
 
 // LinkDefinition represents a link definition in the topology file.
 type LinkDefinition struct {
-	Type       string `yaml:"type,omitempty"`
 	LinkConfig `yaml:",inline"`
+
+	Type string `yaml:"type,omitempty"`
 }
 
 // LinkConfig is the vendor'd (ish) clab link config object.
 type LinkConfig struct {
 	Endpoints []string
-	Labels    map[string]string      `yaml:"labels,omitempty"`
-	Vars      map[string]interface{} `yaml:"vars,omitempty"`
-	MTU       int                    `yaml:"mtu,omitempty"`
+	Labels    map[string]string `yaml:"labels,omitempty"`
+	Vars      map[string]any    `yaml:"vars,omitempty"`
+	MTU       int               `yaml:"mtu,omitempty"`
 }
 
 // HealthcheckConfig represents healthcheck options a node has.
@@ -241,4 +252,162 @@ type HealthcheckConfig struct {
 	Interval int `yaml:"interval,omitempty"`
 	// Timeout: the time in seconds to wait for a single health check operation to complete.
 	Timeout int `yaml:"timeout,omitempty"`
+}
+
+type Component struct {
+	Slot string            `yaml:"slot,omitempty"`
+	Type string            `yaml:"type,omitempty"`
+	Env  map[string]string `yaml:"env,omitempty"`
+	SFM  string            `yaml:"sfm,omitempty"`
+	XIOM XIOMS             `yaml:"xiom,omitempty"`
+	MDA  MDAS              `yaml:"mda,omitempty"`
+}
+
+type XIOM struct {
+	Slot int    `yaml:"slot,omitempty"`
+	Type string `yaml:"type,omitempty"`
+	MDA  MDAS   `yaml:"mda,omitempty"`
+}
+
+type XIOMS []XIOM //nolint: recvcheck
+
+type MDA struct {
+	Slot int    `yaml:"slot,omitempty"`
+	Type string `yaml:"type,omitempty"`
+}
+
+type MDAS []MDA //nolint: recvcheck
+
+func (c *Component) Copy() *Component {
+	if c == nil {
+		return nil
+	}
+
+	// Deep copy the map
+	var envCopy map[string]string
+	if c.Env != nil {
+		envCopy = make(map[string]string, len(c.Env))
+
+		maps.Copy(envCopy, c.Env)
+	}
+
+	return &Component{
+		Slot: c.Slot,
+		Type: c.Type,
+		Env:  envCopy,
+		SFM:  c.SFM,
+		XIOM: c.XIOM.Copy(),
+		MDA:  c.MDA.Copy(),
+	}
+}
+
+func (l *MDAS) UnmarshalYAML(unmarshal func(any) error) error {
+	var entries []MDA
+
+	err := unmarshal(&entries)
+	if err != nil {
+		return err
+	}
+
+	if len(entries) == 0 {
+		*l = nil
+
+		return nil
+	}
+
+	slots := map[int]struct{}{}
+
+	for _, e := range entries {
+		if e.Type == "" || e.Slot <= 0 {
+			return fmt.Errorf(
+				"%w: invalid mda entry. slot and type are required, got slot %q, type %q",
+				claberneteserrors.ErrInvalidData,
+				e.Slot,
+				e.Type,
+			)
+		}
+
+		if _, exists := slots[e.Slot]; exists {
+			return fmt.Errorf(
+				"%w: invalid mda entry. duplicate slot %d",
+				claberneteserrors.ErrInvalidData,
+				e.Slot,
+			)
+		}
+
+		slots[e.Slot] = struct{}{}
+	}
+
+	*l = MDAS(entries)
+
+	return nil
+}
+
+func (l MDAS) Copy() MDAS {
+	if l == nil {
+		return nil
+	}
+
+	out := make([]MDA, len(l))
+	copy(out, l)
+
+	return out
+}
+
+func (l *XIOMS) UnmarshalYAML(unmarshal func(any) error) error {
+	var entries []XIOM
+
+	err := unmarshal(&entries)
+	if err != nil {
+		return err
+	}
+
+	if len(entries) == 0 {
+		*l = nil
+
+		return nil
+	}
+
+	slots := map[int]struct{}{}
+
+	for _, e := range entries {
+		if e.Type == "" || e.Slot <= 0 {
+			return fmt.Errorf(
+				"%w: invalid xiom entry. slot and type are required, got slot %q, type %q",
+				claberneteserrors.ErrInvalidData,
+				e.Slot,
+				e.Type,
+			)
+		}
+
+		if _, exists := slots[e.Slot]; exists {
+			return fmt.Errorf(
+				"%w: invalid xiom entry. duplicate slot %d",
+				claberneteserrors.ErrInvalidData,
+				e.Slot,
+			)
+		}
+
+		slots[e.Slot] = struct{}{}
+	}
+
+	*l = XIOMS(entries)
+
+	return nil
+}
+
+func (l XIOMS) Copy() XIOMS {
+	if l == nil {
+		return nil
+	}
+
+	out := make([]XIOM, len(l))
+	copy(out, l)
+
+	// deep copy
+	for i := range out {
+		out[i].MDA = out[i].MDA.Copy()
+	}
+
+	return out
 }

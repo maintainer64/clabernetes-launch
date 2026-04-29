@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.18.0
+    controller-gen.kubebuilder.io/version: v0.20.0
   name: topologies.clabernetes.containerlab.dev
 spec:
   group: clabernetes.containerlab.dev
@@ -17,6 +17,9 @@ spec:
   - additionalPrinterColumns:
     - jsonPath: .status.kind
       name: Kind
+      type: string
+    - jsonPath: .status.topologyState
+      name: State
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
@@ -112,8 +115,9 @@ spec:
                         in a Container.
                       properties:
                         name:
-                          description: Name of the environment variable. Must be a
-                            C_IDENTIFIER.
+                          description: |-
+                            Name of the environment variable.
+                            May consist of any printable ASCII characters except '='.
                           type: string
                         value:
                           description: |-
@@ -169,6 +173,43 @@ spec:
                                   type: string
                               required:
                               - fieldPath
+                              type: object
+                              x-kubernetes-map-type: atomic
+                            fileKeyRef:
+                              description: |-
+                                FileKeyRef selects a key of the env file.
+                                Requires the EnvFiles feature gate to be enabled.
+                              properties:
+                                key:
+                                  description: |-
+                                    The key within the env file. An invalid key will prevent the pod from starting.
+                                    The keys defined within a source may consist of any printable ASCII characters except '='.
+                                    During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.
+                                  type: string
+                                optional:
+                                  default: false
+                                  description: |-
+                                    Specify whether the file or its key must be defined. If the file or key
+                                    does not exist, then the env var is not published.
+                                    If optional is set to true and the specified key does not exist,
+                                    the environment variable will not be set in the Pod's containers.
+
+                                    If optional is set to false and the specified key does not exist,
+                                    an error will be returned during Pod creation.
+                                  type: boolean
+                                path:
+                                  description: |-
+                                    The path within the volume from which to select the file.
+                                    Must be relative and may not contain the '..' path or start with '..'.
+                                  type: string
+                                volumeName:
+                                  description: The name of the volume mount containing
+                                    the env file.
+                                  type: string
+                              required:
+                              - key
+                              - path
+                              - volumeName
                               type: object
                               x-kubernetes-map-type: atomic
                             resourceFieldRef:
@@ -371,7 +412,7 @@ spec:
                             Claims lists the names of resources, defined in spec.resourceClaims,
                             that are used by this container.
 
-                            This is an alpha field and requires enabling the
+                            This field depends on the
                             DynamicResourceAllocation feature gate.
 
                             This field is immutable. It can only be set for containers.
@@ -528,11 +569,15 @@ spec:
                               you may want to do this if you want to tickle the pods by pod name directly for some
                               reason while not having extra services floating around.
                       - ClusterIP: a clusterip service is created so you can hit that service name for the pods.
+                      - Headless: a headless service (clusterIP: None) is created. This is useful when you don't
+                              need load-balancing or a single service IP but want to directly connect to pods via
+                              DNS records that return pod IPs.
                       - LoadBalancer: (default) creates a load balancer service so you can access your pods from
                               outside the cluster. this is/was the only behavior up to v0.2.4.
                     enum:
                     - None
                     - ClusterIP
+                    - Headless
                     - LoadBalancer
                     type: string
                   useNodeMgmtIpv4Address:
@@ -870,6 +915,64 @@ spec:
                 - containerlab
                 - kne
                 type: string
+              nodeProbeStatuses:
+                additionalProperties:
+                  description: NodeProbeStatuses holds the individual probe statuses
+                    for a single node.
+                  properties:
+                    livenessProbe:
+                      allOf:
+                      - enum:
+                        - passing
+                        - failing
+                        - unknown
+                        - disabled
+                      - enum:
+                        - passing
+                        - failing
+                        - unknown
+                        - disabled
+                      description: LivenessProbe is the status of the node's liveness
+                        probe.
+                      type: string
+                    readinessProbe:
+                      allOf:
+                      - enum:
+                        - passing
+                        - failing
+                        - unknown
+                        - disabled
+                      - enum:
+                        - passing
+                        - failing
+                        - unknown
+                        - disabled
+                      description: ReadinessProbe is the status of the node's readiness
+                        probe.
+                      type: string
+                    startupProbe:
+                      allOf:
+                      - enum:
+                        - passing
+                        - failing
+                        - unknown
+                        - disabled
+                      - enum:
+                        - passing
+                        - failing
+                        - unknown
+                        - disabled
+                      description: StartupProbe is the status of the node's startup
+                        probe.
+                      type: string
+                  required:
+                  - livenessProbe
+                  - readinessProbe
+                  - startupProbe
+                  type: object
+                description: NodeProbeStatuses is a map of node name to per-probe
+                  status information.
+                type: object
               nodeReadiness:
                 additionalProperties:
                   type: string
@@ -925,6 +1028,21 @@ spec:
                   TopologyReady indicates if all nodes in the topology have reported ready. This is duplicated
                   from the conditions so we can easily snag it for print columns!
                 type: boolean
+              topologyState:
+                allOf:
+                - enum:
+                  - deploying
+                  - running
+                  - degraded
+                  - deployfailed
+                - enum:
+                  - deploying
+                  - running
+                  - degraded
+                  - deployfailed
+                description: TopologyState is the high-level lifecycle state of the
+                  topology.
+                type: string
             required:
             - conditions
             - configs
