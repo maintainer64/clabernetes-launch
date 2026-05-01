@@ -1,6 +1,9 @@
 package v1alpha1
 
-import k8scorev1 "k8s.io/api/core/v1"
+import (
+	clabernetesutilcontainerlab "github.com/srl-labs/clabernetes/util/containerlab"
+	k8scorev1 "k8s.io/api/core/v1"
+)
 
 // ConfigMetadata holds "global" configuration data that will be applied to all objects created by
 // the clabernetes controller.
@@ -97,6 +100,10 @@ type ConfigDeployment struct {
 	// +optional
 	// +listType=atomic
 	ExtraEnv []k8scorev1.EnvVar `json:"extraEnv"`
+	// TTYDHttpRoute defines the default ingress configuration for nodes with ttyd-shell enabled.
+	// When set, HTTPRoute resources will be created for nodes that have ttyd-shell configured.
+	// +optional
+	TTYDHttpRoute *clabernetesutilcontainerlab.TTYDHttpRoute `json:"ttydHttpRoute,omitempty"`
 }
 
 // ConfigImagePull holds configurations relevant to how clabernetes launcher pods handle pulling

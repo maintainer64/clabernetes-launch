@@ -659,7 +659,8 @@ func (r *DeploymentReconciler) renderDeploymentContainer(
 	image := ""
 	ttydShell := ""
 
-	if clabernetesConfigs != nil && clabernetesConfigs[nodeName] != nil && clabernetesConfigs[nodeName].Topology.Nodes[nodeName] != nil {
+	if clabernetesConfigs != nil && clabernetesConfigs[nodeName] != nil &&
+		clabernetesConfigs[nodeName].Topology.Nodes[nodeName] != nil {
 		image = clabernetesConfigs[nodeName].Topology.Nodes[nodeName].LauncherImage
 		ttydShell = clabernetesConfigs[nodeName].Topology.Nodes[nodeName].TTYDShell
 	}
@@ -731,7 +732,7 @@ func (r *DeploymentReconciler) renderDeploymentContainer(
 			container.Ports,
 			k8scorev1.ContainerPort{
 				Name:          "ttyd",
-				ContainerPort: clabernetesconstants.PortTTYD,
+				ContainerPort: clabernetesconstants.TTYDServicePort,
 				Protocol:      clabernetesconstants.TCP,
 			},
 		)
@@ -923,7 +924,9 @@ func (r *DeploymentReconciler) renderDeploymentContainerEnv( //nolint:funlen,goc
 		)
 	}
 
-	if clabernetesConfigs != nil && clabernetesConfigs[nodeName] != nil && clabernetesConfigs[nodeName].Topology.Nodes[nodeName] != nil && clabernetesConfigs[nodeName].Topology.Nodes[nodeName].TTYDShell != "" {
+	if clabernetesConfigs != nil && clabernetesConfigs[nodeName] != nil &&
+		clabernetesConfigs[nodeName].Topology.Nodes[nodeName] != nil &&
+		clabernetesConfigs[nodeName].Topology.Nodes[nodeName].TTYDShell != "" {
 		envs = append(
 			envs,
 			k8scorev1.EnvVar{

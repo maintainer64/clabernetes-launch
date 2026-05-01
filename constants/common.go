@@ -28,6 +28,9 @@ const (
 	// SlurpeethServicePort is the port number for slurpeeth that we use in the kubernetes service.
 	SlurpeethServicePort = 4799
 
+	// TTYDServicePort is the port number for web interface with ttyd container exec.
+	TTYDServicePort = 7681
+
 	// TCP is... TCP.
 	TCP = "TCP"
 

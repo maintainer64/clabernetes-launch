@@ -43,7 +43,8 @@ RUN apt-get update && \
     procps \
     openssh-client \
     inetutils-ping \
-    traceroute
+    traceroute \
+    tmux
 
 RUN echo "deb [trusted=yes] https://apt.fury.io/netdevops/ /" | \
     tee -a /etc/apt/sources.list.d/netdevops.list

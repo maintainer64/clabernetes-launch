@@ -199,6 +199,14 @@ func (r *ServiceFabricReconciler) renderServiceBase(
 						IntVal: clabernetesconstants.SlurpeethServicePort,
 					},
 				},
+				{
+					Name:     "ttyd",
+					Protocol: clabernetesconstants.TCP,
+					Port:     clabernetesconstants.TTYDServicePort,
+					TargetPort: intstr.IntOrString{
+						IntVal: clabernetesconstants.TTYDServicePort,
+					},
+				},
 			},
 			Selector: selectorLabels,
 			Type:     k8scorev1.ServiceTypeClusterIP,

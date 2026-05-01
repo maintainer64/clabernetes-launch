@@ -60,8 +60,8 @@ func (r *ConfigMapReconciler) Render(
 	maps.Copy(labels, globalLabels)
 
 	data := map[string]string{
-		// we always make this key like the other keys so we can be lazy and not have to wonder if
-		// the key / mounted file exists.
+		// we always make this key like the other keys so we can be lazy and not have to
+		// wonder if the key / mounted file exists.
 		"configured-pull-secrets": imagePullSecretsString,
 	}
 
@@ -70,6 +70,15 @@ func (r *ConfigMapReconciler) Render(
 		// have any special handling for no tunnels and things always look consistent; we'll
 		// override this down below if the node has files to be mounted course!
 		data[fmt.Sprintf("%s-files-from-url", nodeName)] = ""
+
+		// remove launcher-specific fields from the topology before marshaling; these fields
+		// are used by the controller to configure the launcher pod, not by containerlab
+		if nodeTopo.Topology != nil && nodeTopo.Topology.Nodes != nil {
+			if nodeDef, ok := nodeTopo.Topology.Nodes[nodeName]; ok && nodeDef != nil {
+				nodeDef.LauncherImage = ""
+				nodeDef.TTYDShell = ""
+			}
+		}
 
 		yamlNodeTopo, err := yaml.Marshal(nodeTopo)
 		if err != nil {

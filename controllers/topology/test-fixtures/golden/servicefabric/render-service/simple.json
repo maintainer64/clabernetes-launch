@@ -25,6 +25,12 @@
                 "protocol": "TCP",
                 "port": 4799,
                 "targetPort": 4799
+            },
+            {
+                "name": "ttyd",
+                "protocol": "TCP",
+                "port": 7681,
+                "targetPort": 7681
             }
         ],
         "selector": {

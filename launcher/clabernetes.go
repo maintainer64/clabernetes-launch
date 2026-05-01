@@ -26,6 +26,8 @@ const (
 	clientDefaultTimeout     = time.Minute
 	defaultSSHPort           = 22
 	ttydWaitInterval         = 5 * time.Second
+	ttydPort                 = "7681"
+	tmuxSessionName          = "clabernetes"
 )
 
 // StartClabernetes is a function that starts the clabernetes launcher. It cannot fail, only panic.
@@ -432,7 +434,8 @@ func (c *clabernetes) startTTYD() {
 	c.logger.Info("starting ttyd for web-based terminal access...")
 
 	go func() {
-		// Wait for node container to be ready
+		c.logger.Info("ttyd: waiting for node container to be ready...")
+
 		for {
 			if c.nodeContainerID != "" {
 				break
@@ -441,46 +444,67 @@ func (c *clabernetes) startTTYD() {
 			time.Sleep(ttydWaitInterval)
 		}
 
-		// Start ttyd with docker exec to the node container
-		// ttyd will provide web-based terminal access via browser
-		// Format: ttyd [options] <command> [args...]
-		//nolint:gosec // #nosec G204 G702 - inputs are controlled by operator
-		cmd := exec.CommandContext(c.ctx,
-			"ttyd",
-			"-p", "7681",
-			"-t", "titleFixed=Container Terminal",
-			"docker", "exec", "-it", c.nodeContainerID, ttydShell,
-		)
+		c.logger.Infof("ttyd: node container ready (%s), starting ttyd loop...", c.nodeContainerID)
 
-		// Use logger as io.Writer for stdout/stderr
-		cmd.Stdout = c.logger
-		cmd.Stderr = c.logger
+		for {
+			select {
+			case <-c.ctx.Done():
+				c.logger.Info("ttyd: context cancelled, stopping")
 
-		c.logger.Infof(
-			"starting ttyd on port 7681 for container %s (shell: %s)",
-			c.nodeContainerID,
-			ttydShell,
-		)
-
-		err := cmd.Start()
-		if err != nil {
-			c.logger.Warnf("failed to start ttyd: %s", err)
-
-			return
-		}
-
-		// Kill ttyd when context is done
-		go func() {
-			<-c.ctx.Done()
-
-			if cmd.Process != nil {
-				_ = cmd.Process.Kill()
+				return
+			default:
 			}
-		}()
 
-		err = cmd.Wait()
-		if err != nil {
-			c.logger.Warnf("ttyd exited: %s", err)
+			// Single command chain:
+			// ttyd → tmux new -A -s <name> → docker exec -it <container> <shell>
+			//nolint:gosec // #nosec G204 G702 - inputs are controlled by operator
+			cmd := exec.CommandContext(c.ctx,
+				"ttyd",
+				"--port", ttydPort,
+				"--client-option", fmt.Sprintf("titleFixed=%s", c.nodeName),
+				"--writable",
+				"tmux", "new",
+				"-A", // attach if exists, create if not
+				"-s", tmuxSessionName,
+				"docker", "exec", "-it", c.nodeContainerID, ttydShell,
+			)
+
+			cmd.Stdout = c.logger
+			cmd.Stderr = c.logger
+
+			c.logger.Infof("ttyd: starting on port %s → tmux session %q → container %s (shell: %s)",
+				ttydPort, tmuxSessionName, c.nodeContainerID, ttydShell)
+
+			err := cmd.Start()
+			if err != nil {
+				c.logger.Warnf("ttyd: failed to start: %s — retrying in %s", err, ttydWaitInterval)
+
+				time.Sleep(ttydWaitInterval)
+
+				continue
+			}
+
+			go func(p *os.Process) {
+				<-c.ctx.Done()
+
+				if p != nil {
+					_ = p.Kill()
+				}
+			}(cmd.Process)
+
+			err = cmd.Wait()
+			if err != nil {
+				err := c.ctx.Err()
+				if err != nil {
+					c.logger.Info("ttyd: stopped (context cancelled)")
+
+					return
+				}
+
+				c.logger.Warnf("ttyd: exited: %s — restarting in %s", err, ttydWaitInterval)
+			}
+
+			time.Sleep(ttydWaitInterval)
 		}
 	}()
 }
