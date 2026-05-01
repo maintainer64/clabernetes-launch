@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	clabernetesutilcontainerlab "github.com/srl-labs/clabernetes/util/containerlab"
 	k8scorev1 "k8s.io/api/core/v1"
 )
 
@@ -100,10 +99,22 @@ type ConfigDeployment struct {
 	// +optional
 	// +listType=atomic
 	ExtraEnv []k8scorev1.EnvVar `json:"extraEnv"`
-	// TTYDHttpRoute defines the default ingress configuration for nodes with ttyd-shell enabled.
-	// When set, HTTPRoute resources will be created for nodes that have ttyd-shell configured.
+}
+
+// TTYDHttpRouteParentRef defines a parent reference for the HTTPRoute.
+type TTYDHttpRouteParentRef struct {
+	Name        string `json:"name"        yaml:"name"`
+	Namespace   string `json:"namespace"   yaml:"namespace"`
+	SectionName string `json:"sectionName" yaml:"sectionName"`
+}
+
+// TTYDHttpRoute defines the ingress configuration for ttyd shell access via HTTPRoute.
+type TTYDHttpRoute struct {
+	// +listType=atomic
+	//nolint:lll,tagalign
+	ParentRefs []TTYDHttpRouteParentRef `json:"parentRefs,omitempty"     yaml:"parentRefs,omitempty"`
 	// +optional
-	TTYDHttpRoute *clabernetesutilcontainerlab.TTYDHttpRoute `json:"ttydHttpRoute,omitempty"`
+	HostnameSuffix string `json:"hostnameSuffix,omitempty" yaml:"hostnameSuffix,omitempty"`
 }
 
 // ConfigImagePull holds configurations relevant to how clabernetes launcher pods handle pulling

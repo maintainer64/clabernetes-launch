@@ -3,8 +3,8 @@ package config
 import (
 	"maps"
 
+	clabernetesapisv1alpha1 "github.com/srl-labs/clabernetes/apis/v1alpha1"
 	clabernetesconstants "github.com/srl-labs/clabernetes/constants"
-	clabernetesutilcontainerlab "github.com/srl-labs/clabernetes/util/containerlab"
 	k8scorev1 "k8s.io/api/core/v1"
 )
 
@@ -122,7 +122,7 @@ func (f fakeManager) GetLauncherImagePullPolicy() string {
 	return clabernetesconstants.KubernetesImagePullIfNotPresent
 }
 
-func (f fakeManager) GetTTYDHttpRoute() *clabernetesutilcontainerlab.TTYDHttpRoute {
+func (f fakeManager) GetTTYDHttpRoute() *clabernetesapisv1alpha1.TTYDHttpRoute {
 	return nil
 }
 

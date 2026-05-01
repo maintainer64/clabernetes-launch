@@ -848,25 +848,48 @@ func (r *Reconciler) ReconcileDeployments( //nolint: gocyclo,gocognit,funlen
 		reconcileData.ShouldUpdateResource = true
 	}
 
-	err = r.reconcileDeploymentsHandleRestarts(
+	return r.reconcileDeploymentsHandleRestarts(
 		ctx,
 		owningTopology,
 		deployments,
 		reconcileData,
 	)
-	if err != nil {
-		return err
-	}
-
-	return r.ReconcileHTTPRoutes(ctx, owningTopology, reconcileData)
 }
 
 // ReconcileHTTPRoutes reconciles the HTTPRoute resources for nodes with ttyd-shell enabled.
-func (r *Reconciler) ReconcileHTTPRoutes(
+func (r *Reconciler) ReconcileHTTPRoutes( //nolint:gocyclo,gocognit
 	ctx context.Context,
 	owningTopology *clabernetesapisv1alpha1.Topology,
 	reconcileData *ReconcileData,
 ) error {
+	ttydIngress := r.HTTPRouteReconciler.configManagerGetter().GetTTYDHttpRoute()
+	if ttydIngress == nil || ttydIngress.HostnameSuffix == "" {
+		r.Log.Info("ttydIngress not configured, pruning all HTTPRoutes for topology")
+		// Delete all existing HTTPRoutes for this topology
+		var existingRoutes gatewayv1.HTTPRouteList
+
+		err := r.Client.List(
+			ctx,
+			&existingRoutes,
+			ctrlruntimeclient.InNamespace(owningTopology.GetNamespace()),
+			ctrlruntimeclient.MatchingLabels{
+				clabernetesconstants.LabelTopologyOwner: owningTopology.GetName(),
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		for i := range existingRoutes.Items {
+			err = r.deleteObj(ctx, &existingRoutes.Items[i], "HTTPRoute")
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
 	httpRoutes, err := ReconcileResolve(
 		ctx,
 		r,

@@ -187,6 +187,38 @@
               "items": {
                 "type": "object"
               }
+            },
+            "ttydHttpRoute": {
+              "type": "object",
+              "description": "Ingress configuration for ttyd shell access via HTTPRoute. When set, HTTPRoute resources will be created for nodes with ttyd-shell enabled.",
+              "properties": {
+                "hostnameSuffix": {
+                  "type": "string",
+                  "description": "Suffix to append to the hostname for HTTPRoute (e.g., '.example.com')"
+                },
+                "parentRefs": {
+                  "type": "array",
+                  "description": "Parent references for the HTTPRoute (e.g., gateway and section name)",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Name of the parent reference (e.g., gateway name)"
+                      },
+                      "namespace": {
+                        "type": "string",
+                        "description": "Namespace of the parent reference"
+                      },
+                      "sectionName": {
+                        "type": "string",
+                        "description": "Section name of the parent reference (e.g., 'http' or 'https')"
+                      }
+                    },
+                    "required": ["name"]
+                  }
+                }
+              }
             }
           }
         },

@@ -42,6 +42,10 @@ type ConfigSpec struct {
 	// +kubebuilder:default=prefixed
 	// +optional
 	Naming string `json:"naming"`
+	// TTYDHttpRoute defines the default ingress configuration for nodes with ttyd-shell enabled.
+	// When set, HTTPRoute resources will be created for nodes that have ttyd-shell configured.
+	// +optional
+	TTYDHttpRoute TTYDHttpRoute `json:"ttydHttpRoute,omitempty"`
 }
 
 // ConfigStatus is the status for a Config resource.

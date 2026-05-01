@@ -33,6 +33,7 @@ type bootstrapConfig struct {
 	naming                      string
 	containerlabVersion         string
 	extraEnv                    []k8scorev1.EnvVar
+	ttydHTTPRoute               clabernetesapisv1alpha1.TTYDHttpRoute
 }
 
 func bootstrapFromConfigMap( //nolint:gocyclo,funlen,gocognit
@@ -171,6 +172,18 @@ func bootstrapFromConfigMap( //nolint:gocyclo,funlen,gocognit
 		err := sigsyaml.Unmarshal([]byte(extraEnvData), &bc.extraEnv)
 		if err != nil {
 			outErrors = append(outErrors, err.Error())
+		}
+	}
+
+	ttyData, ttyOk := inMap["ttydHttpRoute"]
+	if ttyOk {
+		var ttyConfig clabernetesapisv1alpha1.TTYDHttpRoute
+
+		err := sigsyaml.Unmarshal([]byte(ttyData), &ttyConfig)
+		if err != nil {
+			outErrors = append(outErrors, err.Error())
+		} else {
+			bc.ttydHTTPRoute = ttyConfig
 		}
 	}
 
@@ -342,6 +355,7 @@ func mergeFromBootstrapConfigReplace(
 			ContainerlabVersion:         bootstrap.containerlabVersion,
 			ExtraEnv:                    bootstrap.extraEnv,
 		},
-		Naming: bootstrap.naming,
+		TTYDHttpRoute: bootstrap.ttydHTTPRoute,
+		Naming:        bootstrap.naming,
 	}
 }

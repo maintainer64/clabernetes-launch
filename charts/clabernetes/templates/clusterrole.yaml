@@ -107,6 +107,28 @@ rules:
       - patch
       - watch
     {{- end }}
+  {{- if .Values.globalConfig.ttydHttpRoute }}
+  - apiGroups:
+      - gateway.networking.k8s.io
+    resources:
+      - httproutes
+      - gateways
+      - gatewayclasses
+      - referencegrants
+    verbs:
+    {{- if .Values.manager.restrictedRBAC.enabled }}
+      - list
+      - watch
+    {{- else }}
+      - get
+      - list
+      - create
+      - update
+      - delete
+      - patch
+      - watch
+    {{- end }}
+  {{- end }}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

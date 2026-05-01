@@ -10,6 +10,7 @@ import (
 	apimachineryruntime "k8s.io/apimachinery/pkg/runtime"
 	apimachineryscheme "k8s.io/apimachinery/pkg/runtime/schema"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 // registerToScheme registers apis needed by clabernetes to the schema.
@@ -38,6 +39,11 @@ func registerToScheme(c clabernetesmanagertypes.Clabernetes) error {
 	err = apiextensionsv1.AddToScheme(scheme)
 	if err != nil {
 		return fmt.Errorf("adding apiextensions to scheme: %w", err)
+	}
+
+	err = gatewayv1.Install(scheme)
+	if err != nil {
+		return fmt.Errorf("adding gateway-api to scheme: %w", err)
 	}
 
 	return nil

@@ -121,6 +121,12 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/srl-labs/clabernetes/apis/v1alpha1.TCPProbeConfiguration": schema_srl_labs_clabernetes_apis_v1alpha1_TCPProbeConfiguration(
 			ref,
 		),
+		"github.com/srl-labs/clabernetes/apis/v1alpha1.TTYDHttpRoute": schema_srl_labs_clabernetes_apis_v1alpha1_TTYDHttpRoute(
+			ref,
+		),
+		"github.com/srl-labs/clabernetes/apis/v1alpha1.TTYDHttpRouteParentRef": schema_srl_labs_clabernetes_apis_v1alpha1_TTYDHttpRouteParentRef(
+			ref,
+		),
 		"github.com/srl-labs/clabernetes/apis/v1alpha1.Topology": schema_srl_labs_clabernetes_apis_v1alpha1_Topology(
 			ref,
 		),
@@ -535,11 +541,20 @@ func schema_srl_labs_clabernetes_apis_v1alpha1_ConfigSpec(
 							Format:      "",
 						},
 					},
+					"ttydHttpRoute": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TTYDHttpRoute defines the default ingress configuration for nodes with ttyd-shell enabled. When set, HTTPRoute resources will be created for nodes that have ttyd-shell configured.",
+							Default:     map[string]interface{}{},
+							Ref: ref(
+								"github.com/srl-labs/clabernetes/apis/v1alpha1.TTYDHttpRoute",
+							),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/srl-labs/clabernetes/apis/v1alpha1.ConfigDeployment", "github.com/srl-labs/clabernetes/apis/v1alpha1.ConfigImagePull", "github.com/srl-labs/clabernetes/apis/v1alpha1.ConfigMetadata"},
+			"github.com/srl-labs/clabernetes/apis/v1alpha1.ConfigDeployment", "github.com/srl-labs/clabernetes/apis/v1alpha1.ConfigImagePull", "github.com/srl-labs/clabernetes/apis/v1alpha1.ConfigMetadata", "github.com/srl-labs/clabernetes/apis/v1alpha1.TTYDHttpRoute"},
 	}
 }
 
@@ -1814,6 +1829,86 @@ func schema_srl_labs_clabernetes_apis_v1alpha1_TCPProbeConfiguration(
 	}
 }
 
+func schema_srl_labs_clabernetes_apis_v1alpha1_TTYDHttpRoute(
+	ref common.ReferenceCallback,
+) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TTYDHttpRoute defines the ingress configuration for ttyd shell access via HTTPRoute.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"parentRefs": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref: ref(
+											"github.com/srl-labs/clabernetes/apis/v1alpha1.TTYDHttpRouteParentRef",
+										),
+									},
+								},
+							},
+						},
+					},
+					"hostnameSuffix": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/srl-labs/clabernetes/apis/v1alpha1.TTYDHttpRouteParentRef"},
+	}
+}
+
+func schema_srl_labs_clabernetes_apis_v1alpha1_TTYDHttpRouteParentRef(
+	ref common.ReferenceCallback,
+) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TTYDHttpRouteParentRef defines a parent reference for the HTTPRoute.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"sectionName": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"name", "namespace", "sectionName"},
+			},
+		},
+	}
+}
+
 func schema_srl_labs_clabernetes_apis_v1alpha1_Topology(
 	ref common.ReferenceCallback,
 ) common.OpenAPIDefinition {
@@ -2084,6 +2179,13 @@ func schema_srl_labs_clabernetes_apis_v1alpha1_TopologyStatus(
 							Description: "TopologyReady indicates if all nodes in the topology have reported ready. This is duplicated from the conditions so we can easily snag it for print columns!",
 							Default:     false,
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"topologyState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TopologyState is the high-level lifecycle state of the topology.",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

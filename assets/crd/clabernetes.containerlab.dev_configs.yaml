@@ -511,6 +511,32 @@ spec:
                 - prefixed
                 - non-prefixed
                 type: string
+              ttydHttpRoute:
+                description: |-
+                  TTYDHttpRoute defines the default ingress configuration for nodes with ttyd-shell enabled.
+                  When set, HTTPRoute resources will be created for nodes that have ttyd-shell configured.
+                properties:
+                  hostnameSuffix:
+                    type: string
+                  parentRefs:
+                    items:
+                      description: TTYDHttpRouteParentRef defines a parent reference
+                        for the HTTPRoute.
+                      properties:
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                        sectionName:
+                          type: string
+                      required:
+                      - name
+                      - namespace
+                      - sectionName
+                      type: object
+                    type: array
+                    x-kubernetes-list-type: atomic
+                type: object
             type: object
           status:
             description: ConfigStatus is the status for a Config resource.

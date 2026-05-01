@@ -168,5 +168,16 @@ func (c *Controller) reconcileResources(
 		return err
 	}
 
+	err = c.TopologyReconciler.ReconcileHTTPRoutes(
+		ctx,
+		topology,
+		reconcileData,
+	)
+	if err != nil {
+		c.BaseController.Log.Criticalf("failed reconciling clabernetes http routes, error: %s", err)
+
+		return err
+	}
+
 	return nil
 }

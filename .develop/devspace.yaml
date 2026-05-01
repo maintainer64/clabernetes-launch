@@ -114,6 +114,12 @@ deployments:
           deployment:
             launcherImage: ${LAUNCHER_IMAGE}
             launcherImagePullPolicy: ${PULL_POLICY}
+          ttydHttpRoute:
+            hostnameSuffix: ".example.com"
+            parentRefs:
+              - name: gateway-name
+                namespace: default
+                sectionName: http
         clicker:
           image: ${MANAGER_IMAGE}
           imagePullPolicy: ${PULL_POLICY}

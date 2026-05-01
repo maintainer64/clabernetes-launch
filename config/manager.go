@@ -12,7 +12,6 @@ import (
 	clabernetesgeneratedclientset "github.com/srl-labs/clabernetes/generated/clientset"
 	claberneteslogging "github.com/srl-labs/clabernetes/logging"
 	clabernetesutil "github.com/srl-labs/clabernetes/util"
-	clabernetesutilcontainerlab "github.com/srl-labs/clabernetes/util/containerlab"
 	"gopkg.in/yaml.v3"
 	k8scorev1 "k8s.io/api/core/v1"
 	apimachineryerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -150,7 +149,7 @@ type Manager interface { //nolint: interfacebloat
 	// GetLauncherImagePullPolicy returns the global default launcher image pull policy.
 	GetLauncherImagePullPolicy() string
 	// GetTTYDHttpRoute returns the global TTYD ingress configuration.
-	GetTTYDHttpRoute() *clabernetesutilcontainerlab.TTYDHttpRoute
+	GetTTYDHttpRoute() *clabernetesapisv1alpha1.TTYDHttpRoute
 	// GetLauncherLogLevel returns the default launcher log level.
 	GetLauncherLogLevel() string
 	// GetExtraEnv returns the default extra env vars for setting on launcher containers.

@@ -20,7 +20,7 @@ func TestResolveHTTPRoute(t *testing.T) {
 	cases := []struct {
 		name               string
 		ownedHTTPRoutes    *gatewayv1.HTTPRouteList
-		ttydIngress        *clabernetesutilcontainerlab.TTYDHttpRoute
+		ttydIngress        *clabernetesapisv1alpha1.TTYDHttpRoute
 		clabernetesConfigs map[string]*clabernetesutilcontainerlab.Config
 		expectedCurrent    []string
 		expectedMissing    []string
@@ -48,9 +48,9 @@ func TestResolveHTTPRoute(t *testing.T) {
 		{
 			name:            "simple",
 			ownedHTTPRoutes: &gatewayv1.HTTPRouteList{},
-			ttydIngress: &clabernetesutilcontainerlab.TTYDHttpRoute{
+			ttydIngress: &clabernetesapisv1alpha1.TTYDHttpRoute{
 				HostnameSuffix: ".example.com",
-				ParentRefs: []clabernetesutilcontainerlab.TTYDHttpRouteParentRef{
+				ParentRefs: []clabernetesapisv1alpha1.TTYDHttpRouteParentRef{
 					{Name: "gw", Namespace: "default", SectionName: "http"},
 				},
 			},
@@ -93,9 +93,9 @@ func TestResolveHTTPRoute(t *testing.T) {
 					},
 				},
 			},
-			ttydIngress: &clabernetesutilcontainerlab.TTYDHttpRoute{
+			ttydIngress: &clabernetesapisv1alpha1.TTYDHttpRoute{
 				HostnameSuffix: ".example.com",
-				ParentRefs: []clabernetesutilcontainerlab.TTYDHttpRouteParentRef{
+				ParentRefs: []clabernetesapisv1alpha1.TTYDHttpRouteParentRef{
 					{Name: "gw", Namespace: "default", SectionName: "http"},
 				},
 			},
@@ -129,9 +129,9 @@ func TestResolveHTTPRoute(t *testing.T) {
 					},
 				},
 			},
-			ttydIngress: &clabernetesutilcontainerlab.TTYDHttpRoute{
+			ttydIngress: &clabernetesapisv1alpha1.TTYDHttpRoute{
 				HostnameSuffix: ".example.com",
-				ParentRefs: []clabernetesutilcontainerlab.TTYDHttpRouteParentRef{
+				ParentRefs: []clabernetesapisv1alpha1.TTYDHttpRouteParentRef{
 					{Name: "gw", Namespace: "default", SectionName: "http"},
 				},
 			},
@@ -203,10 +203,10 @@ func TestResolveHTTPRoute(t *testing.T) {
 type fakeManagerForHTTPRoute struct {
 	clabernetesconfig.Manager
 
-	ttydIngress *clabernetesutilcontainerlab.TTYDHttpRoute
+	ttydIngress *clabernetesapisv1alpha1.TTYDHttpRoute
 }
 
-func (f *fakeManagerForHTTPRoute) GetTTYDHttpRoute() *clabernetesutilcontainerlab.TTYDHttpRoute {
+func (f *fakeManagerForHTTPRoute) GetTTYDHttpRoute() *clabernetesapisv1alpha1.TTYDHttpRoute {
 	return f.ttydIngress
 }
 
@@ -214,7 +214,7 @@ func TestRenderHTTPRoute(t *testing.T) {
 	cases := []struct {
 		name               string
 		owningTopology     *clabernetesapisv1alpha1.Topology
-		ttydIngress        *clabernetesutilcontainerlab.TTYDHttpRoute
+		ttydIngress        *clabernetesapisv1alpha1.TTYDHttpRoute
 		clabernetesConfigs map[string]*clabernetesutilcontainerlab.Config
 		nodeName           string
 		expectedCount      int
@@ -227,9 +227,9 @@ func TestRenderHTTPRoute(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			ttydIngress: &clabernetesutilcontainerlab.TTYDHttpRoute{
+			ttydIngress: &clabernetesapisv1alpha1.TTYDHttpRoute{
 				HostnameSuffix: ".example.com",
-				ParentRefs: []clabernetesutilcontainerlab.TTYDHttpRouteParentRef{
+				ParentRefs: []clabernetesapisv1alpha1.TTYDHttpRouteParentRef{
 					{Name: "gw", Namespace: "default", SectionName: "http"},
 				},
 			},
