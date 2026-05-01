@@ -4,7 +4,6 @@ import (
 	"maps"
 
 	clabernetesconstants "github.com/srl-labs/clabernetes/constants"
-	clabernetesutilcontainerlab "github.com/srl-labs/clabernetes/util/containerlab"
 	k8scorev1 "k8s.io/api/core/v1"
 )
 
@@ -144,13 +143,6 @@ func (m *manager) GetLauncherImagePullPolicy() string {
 	defer m.lock.RUnlock()
 
 	return m.config.Deployment.LauncherImagePullPolicy
-}
-
-func (m *manager) GetTTYDHttpRoute() *clabernetesutilcontainerlab.TTYDHttpRoute {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	return m.config.Deployment.TTYDHttpRoute
 }
 
 func (m *manager) GetLauncherLogLevel() string {
