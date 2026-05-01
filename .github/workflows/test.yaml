@@ -104,6 +104,14 @@ jobs:
           kubectl cluster-info
           kubectl get pods -A
 
+      - name: install gateway api CRDs
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+
+      - name: wait for CRDs
+        run: |
+          kubectl wait --for=condition=Established crd/httproutes.gateway.networking.k8s.io --timeout=60s
+
       - name: deploy clabernetes
         run: devspace run deploy --profile debug
 
