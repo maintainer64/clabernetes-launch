@@ -45,4 +45,7 @@ const (
 
 	// HealthProbePort is the port number for kubernetes health endpoints to run on.
 	HealthProbePort = 8080
+
+	// PortTTYD is the ttyd web terminal port number.
+	PortTTYD = 7681
 )

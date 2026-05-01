@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ const (
 	statusProbeCheckTimeout  = 5 * time.Second
 	clientDefaultTimeout     = time.Minute
 	defaultSSHPort           = 22
+	ttydWaitInterval         = 5 * time.Second
 )
 
 // StartClabernetes is a function that starts the clabernetes launcher. It cannot fail, only panic.
@@ -113,6 +115,7 @@ func (c *clabernetes) startup() {
 	c.image()
 	c.launch()
 	c.connectivity()
+	c.startTTYD()
 
 	go c.imageCleanup()
 	go c.runProbes()
@@ -415,6 +418,71 @@ func (c *clabernetes) watchContainers() {
 			return
 		}
 	}
+}
+
+func (c *clabernetes) startTTYD() {
+	// Get ttyd config from topology settings via env vars
+	ttydShell := os.Getenv("TTYD_SHELL")
+	if ttydShell == "" {
+		c.logger.Info("ttyd is disabled, skipping start")
+
+		return
+	}
+
+	c.logger.Info("starting ttyd for web-based terminal access...")
+
+	go func() {
+		// Wait for node container to be ready
+		for {
+			if c.nodeContainerID != "" {
+				break
+			}
+
+			time.Sleep(ttydWaitInterval)
+		}
+
+		// Start ttyd with docker exec to the node container
+		// ttyd will provide web-based terminal access via browser
+		// Format: ttyd [options] <command> [args...]
+		//nolint:gosec // #nosec G204 G702 - inputs are controlled by operator
+		cmd := exec.CommandContext(c.ctx,
+			"ttyd",
+			"-p", "7681",
+			"-t", "titleFixed=Container Terminal",
+			"docker", "exec", "-it", c.nodeContainerID, ttydShell,
+		)
+
+		// Use logger as io.Writer for stdout/stderr
+		cmd.Stdout = c.logger
+		cmd.Stderr = c.logger
+
+		c.logger.Infof(
+			"starting ttyd on port 7681 for container %s (shell: %s)",
+			c.nodeContainerID,
+			ttydShell,
+		)
+
+		err := cmd.Start()
+		if err != nil {
+			c.logger.Warnf("failed to start ttyd: %s", err)
+
+			return
+		}
+
+		// Kill ttyd when context is done
+		go func() {
+			<-c.ctx.Done()
+
+			if cmd.Process != nil {
+				_ = cmd.Process.Kill()
+			}
+		}()
+
+		err = cmd.Wait()
+		if err != nil {
+			c.logger.Warnf("ttyd exited: %s", err)
+		}
+	}()
 }
 
 func (c *clabernetes) reportContainerLaunchFail() {

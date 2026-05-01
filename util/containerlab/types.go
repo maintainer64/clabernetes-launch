@@ -128,6 +128,8 @@ type NodeDefinition struct {
 	AutoRemove           *bool             `yaml:"auto-remove,omitempty"`
 	Config               *ConfigDispatcher `yaml:"config,omitempty"`
 	Image                string            `yaml:"image,omitempty"`
+	LauncherImage        string            `yaml:"launcher-image,omitempty"`
+	TTYDShell            string            `yaml:"ttyd-shell,omitempty"`
 	ImagePullPolicy      string            `yaml:"image-pull-policy,omitempty"`
 	License              string            `yaml:"license,omitempty"`
 	Position             string            `yaml:"position,omitempty"`
