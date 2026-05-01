@@ -88,6 +88,9 @@ COPY build/launcher/sshin /usr/local/bin/sshin
 # copy shellin command to simplify shell access to the containers
 COPY build/launcher/shellin /usr/local/bin/shellin
 
+# WEB access tmux config without key-binds
+COPY build/launcher/.tmux.conf /root/.tmux.conf
+
 WORKDIR /clabernetes
 
 RUN mkdir .node
