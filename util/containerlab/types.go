@@ -117,6 +117,19 @@ func (t *Topology) GetNodeLicense(nodeName string) string {
 	return t.Defaults.License
 }
 
+// TTYDHttpRouteParentRef defines a parent reference for the HTTPRoute.
+type TTYDHttpRouteParentRef struct {
+	Name        string `yaml:"name"`
+	Namespace   string `yaml:"namespace"`
+	SectionName string `yaml:"sectionName"`
+}
+
+// TTYDHttpRoute defines the ingress configuration for ttyd shell access via HTTPRoute.
+type TTYDHttpRoute struct {
+	ParentRefs     []TTYDHttpRouteParentRef `yaml:"parentRefs,omitempty"`
+	HostnameSuffix string                   `yaml:"hostnameSuffix,omitempty"`
+}
+
 // NodeDefinition represents a configuration a given node can have in the lab definition file.
 type NodeDefinition struct {
 	Kind                 string            `yaml:"kind,omitempty"`

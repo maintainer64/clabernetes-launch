@@ -60,8 +60,8 @@ func (r *ConfigMapReconciler) Render(
 	maps.Copy(labels, globalLabels)
 
 	data := map[string]string{
-		// we always make this key like the other keys so we can be lazy and not have to wonder if
-		// the key / mounted file exists.
+		// we always make this key like the other keys so we can be lazy and not have to
+		// wonder if the key / mounted file exists.
 		"configured-pull-secrets": imagePullSecretsString,
 	}
 

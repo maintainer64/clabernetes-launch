@@ -22,6 +22,7 @@ import (
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	ctrlruntimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlruntimeutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 // Reconciler (TopologyReconciler) is the base clabernetes topology reconciler that is embedded in
@@ -44,6 +45,7 @@ type Reconciler struct {
 	ServiceExposeReconciler         *ServiceExposeReconciler
 	PersistentVolumeClaimReconciler *PersistentVolumeClaimReconciler
 	DeploymentReconciler            *DeploymentReconciler
+	HTTPRouteReconciler             *HTTPRouteReconciler
 }
 
 // NewReconciler creates a new generic Reconciler (TopologyReconciler).
@@ -94,6 +96,10 @@ func NewReconciler(
 			managerAppName,
 			managerNamespace,
 			criKind,
+			configManagerGetter,
+		),
+		HTTPRouteReconciler: NewHTTPRouteReconciler(
+			log,
 			configManagerGetter,
 		),
 	}
@@ -842,12 +848,118 @@ func (r *Reconciler) ReconcileDeployments( //nolint: gocyclo,gocognit,funlen
 		reconcileData.ShouldUpdateResource = true
 	}
 
-	return r.reconcileDeploymentsHandleRestarts(
+	err = r.reconcileDeploymentsHandleRestarts(
 		ctx,
 		owningTopology,
 		deployments,
 		reconcileData,
 	)
+	if err != nil {
+		return err
+	}
+
+	return r.ReconcileHTTPRoutes(ctx, owningTopology, reconcileData)
+}
+
+// ReconcileHTTPRoutes reconciles the HTTPRoute resources for nodes with ttyd-shell enabled.
+func (r *Reconciler) ReconcileHTTPRoutes(
+	ctx context.Context,
+	owningTopology *clabernetesapisv1alpha1.Topology,
+	reconcileData *ReconcileData,
+) error {
+	httpRoutes, err := ReconcileResolve(
+		ctx,
+		r,
+		&gatewayv1.HTTPRoute{},
+		&gatewayv1.HTTPRouteList{},
+		"HTTPRoute",
+		owningTopology,
+		reconcileData.ResolvedConfigs,
+		r.HTTPRouteReconciler.Resolve,
+	)
+	if err != nil {
+		return err
+	}
+
+	r.Log.Info("pruning extraneous HTTPRoutes")
+
+	for _, extraRoute := range httpRoutes.Extra {
+		err = r.deleteObj(ctx, extraRoute, "HTTPRoute")
+		if err != nil {
+			return err
+		}
+	}
+
+	r.Log.Info("creating missing HTTPRoutes")
+
+	renderedMissingRoutes := r.HTTPRouteReconciler.RenderAll(
+		owningTopology,
+		httpRoutes.Missing,
+	)
+
+	for _, renderedMissingRoute := range renderedMissingRoutes {
+		err = r.createObj(
+			ctx,
+			owningTopology,
+			renderedMissingRoute,
+			"HTTPRoute",
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	r.Log.Info("enforcing desired state on existing HTTPRoutes")
+
+	for _, existingRoute := range httpRoutes.Current {
+		// Find the node name from labels
+		nodeName := existingRoute.Labels[clabernetesconstants.LabelTopologyNode]
+		if nodeName == "" {
+			continue
+		}
+
+		// Render both redirect and backend routes, find matching one
+		renderedRoutes := r.HTTPRouteReconciler.Render(
+			owningTopology,
+			nodeName,
+		)
+
+		var renderedRoute *gatewayv1.HTTPRoute
+
+		for _, rr := range renderedRoutes {
+			if rr.Name == existingRoute.Name {
+				renderedRoute = rr
+
+				break
+			}
+		}
+
+		if renderedRoute == nil {
+			continue
+		}
+
+		err = ctrlruntimeutil.SetOwnerReference(
+			owningTopology,
+			renderedRoute,
+			r.Client.Scheme(),
+		)
+		if err != nil {
+			return err
+		}
+
+		if !r.HTTPRouteReconciler.Conforms(
+			existingRoute,
+			renderedRoute,
+			owningTopology.GetUID(),
+		) {
+			err = r.updateObj(ctx, renderedRoute, "HTTPRoute")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *Reconciler) collectNodeProbeStatuses(
