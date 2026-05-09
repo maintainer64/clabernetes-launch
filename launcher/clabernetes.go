@@ -425,6 +425,7 @@ func (c *clabernetes) watchContainers() {
 func (c *clabernetes) startTTYD() {
 	// Get ttyd config from topology settings via env vars
 	ttydShell := os.Getenv("TTYD_SHELL")
+
 	if ttydShell == "" {
 		c.logger.Info("ttyd is disabled, skipping start")
 
@@ -455,19 +456,30 @@ func (c *clabernetes) startTTYD() {
 			default:
 			}
 
-			// Single command chain:
-			// ttyd → tmux new -A -s <name> → docker exec -it <container> <shell>
-			//nolint:gosec // #nosec G204 G702 - inputs are controlled by operator
-			cmd := exec.CommandContext(c.ctx,
-				"ttyd",
-				"--port", ttydPort,
-				"--client-option", fmt.Sprintf("titleFixed=%s", c.nodeName),
+			var dockerArgs []string
+			if ttydShell == "attach" {
+				dockerArgs = []string{"docker", "attach", c.nodeContainerID}
+			} else {
+				dockerArgs = []string{"docker", "exec", "-it", c.nodeContainerID, ttydShell}
+			}
+
+			args := make([]string, 0, 10+len(dockerArgs)) //nolint:mnd
+			args = append(
+				args,
+				"--port",
+				ttydPort,
+				"--client-option",
+				fmt.Sprintf("titleFixed=%s", c.nodeName),
 				"--writable",
-				"tmux", "new",
+				"tmux",
+				"new",
 				"-A", // attach if exists, create if not
-				"-s", tmuxSessionName,
-				"docker", "exec", "-it", c.nodeContainerID, ttydShell,
+				"-s",
+				tmuxSessionName,
 			)
+			args = append(args, dockerArgs...)
+
+			cmd := exec.CommandContext(c.ctx, "ttyd", args...) //nolint:gosec
 
 			cmd.Stdout = c.logger
 			cmd.Stderr = c.logger
