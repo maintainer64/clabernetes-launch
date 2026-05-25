@@ -2,7 +2,7 @@
 SHELL=$1
 
 if [ -z "$SHELL" ]; then
-    SHELL="/bin/bash"
+    SHELL="/bin/sh"
 fi
 
 CONT_NAME=$(docker ps -a --format {{.Names}})
