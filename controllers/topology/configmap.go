@@ -71,6 +71,15 @@ func (r *ConfigMapReconciler) Render(
 		// override this down below if the node has files to be mounted course!
 		data[fmt.Sprintf("%s-files-from-url", nodeName)] = ""
 
+		// remove launcher-specific fields from the topology before marshaling; these fields
+		// are used by the controller to configure the launcher pod, not by containerlab
+		if nodeTopo.Topology != nil && nodeTopo.Topology.Nodes != nil {
+			if nodeDef, ok := nodeTopo.Topology.Nodes[nodeName]; ok && nodeDef != nil {
+				nodeDef.LauncherImage = ""
+				nodeDef.TTYDShell = ""
+			}
+		}
+
 		yamlNodeTopo, err := yaml.Marshal(nodeTopo)
 		if err != nil {
 			return nil, err

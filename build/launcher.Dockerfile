@@ -28,6 +28,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG DOCKER_VERSION="5:28.*"
 ARG CONTAINERLAB_VERSION="0.74.3+"
 ARG NERDCTL_VERSION="2.1.4"
+ARG TTYD_VERSION="1.7.7"
 
 RUN apt-get update && \
     apt-get install -yq --no-install-recommends \
@@ -42,7 +43,8 @@ RUN apt-get update && \
     procps \
     openssh-client \
     inetutils-ping \
-    traceroute
+    traceroute \
+    tmux
 
 RUN echo "deb [trusted=yes] https://apt.fury.io/netdevops/ /" | \
     tee -a /etc/apt/sources.list.d/netdevops.list
@@ -64,6 +66,7 @@ RUN apt-get update && \
 
 RUN curl -L https://github.com/containerd/nerdctl/releases/download/v${NERDCTL_VERSION}/nerdctl-${NERDCTL_VERSION}-linux-amd64.tar.gz | tar -xz -C /usr/bin/ && rm /usr/bin/containerd-rootless*.sh
 
+RUN curl -L https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.x86_64 -o /usr/local/bin/ttyd && chmod +x /usr/local/bin/ttyd
 # https://github.com/docker/cli/issues/4807
 RUN sed -i 's/ulimit -Hn/# ulimit -Hn/g' /etc/init.d/docker
 
@@ -84,6 +87,9 @@ COPY build/launcher/sshin /usr/local/bin/sshin
 
 # copy shellin command to simplify shell access to the containers
 COPY build/launcher/shellin /usr/local/bin/shellin
+
+# WEB access tmux config without key-binds
+COPY build/launcher/.tmux.conf /root/.tmux.conf
 
 WORKDIR /clabernetes
 

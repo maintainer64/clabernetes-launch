@@ -28,6 +28,10 @@ spec:
       port: 4799
       protocol: TCP
       targetPort: 4799
+    - name: ttyd
+      port: 7681
+      protocol: TCP
+      targetPort: 7681
   selector:
     clabernetes/app: clabernetes
     clabernetes/name: topology-basic-srl1

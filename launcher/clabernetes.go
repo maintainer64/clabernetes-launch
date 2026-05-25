@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -24,6 +25,9 @@ const (
 	statusProbeCheckTimeout  = 5 * time.Second
 	clientDefaultTimeout     = time.Minute
 	defaultSSHPort           = 22
+	ttydWaitInterval         = 5 * time.Second
+	ttydPort                 = "7681"
+	tmuxSessionName          = "clabernetes"
 )
 
 // StartClabernetes is a function that starts the clabernetes launcher. It cannot fail, only panic.
@@ -113,6 +117,7 @@ func (c *clabernetes) startup() {
 	c.image()
 	c.launch()
 	c.connectivity()
+	c.startTTYD()
 
 	go c.imageCleanup()
 	go c.runProbes()
@@ -415,6 +420,105 @@ func (c *clabernetes) watchContainers() {
 			return
 		}
 	}
+}
+
+func (c *clabernetes) startTTYD() {
+	// Get ttyd config from topology settings via env vars
+	ttydShell := os.Getenv("TTYD_SHELL")
+
+	if ttydShell == "" {
+		c.logger.Info("ttyd is disabled, skipping start")
+
+		return
+	}
+
+	c.logger.Info("starting ttyd for web-based terminal access...")
+
+	go func() {
+		c.logger.Info("ttyd: waiting for node container to be ready...")
+
+		for {
+			if c.nodeContainerID != "" {
+				break
+			}
+
+			time.Sleep(ttydWaitInterval)
+		}
+
+		c.logger.Infof("ttyd: node container ready (%s), starting ttyd loop...", c.nodeContainerID)
+
+		for {
+			select {
+			case <-c.ctx.Done():
+				c.logger.Info("ttyd: context cancelled, stopping")
+
+				return
+			default:
+			}
+
+			var dockerArgs []string
+			if ttydShell == "attach" {
+				dockerArgs = []string{"docker", "attach", c.nodeContainerID}
+			} else {
+				dockerArgs = []string{"docker", "exec", "-it", c.nodeContainerID, ttydShell}
+			}
+
+			args := make([]string, 0, 10+len(dockerArgs)) //nolint:mnd
+			args = append(
+				args,
+				"--port",
+				ttydPort,
+				"--client-option",
+				fmt.Sprintf("titleFixed=%s", c.nodeName),
+				"--writable",
+				"tmux",
+				"new",
+				"-A", // attach if exists, create if not
+				"-s",
+				tmuxSessionName,
+			)
+			args = append(args, dockerArgs...)
+
+			cmd := exec.CommandContext(c.ctx, "ttyd", args...) //nolint:gosec
+
+			cmd.Stdout = c.logger
+			cmd.Stderr = c.logger
+
+			c.logger.Infof("ttyd: starting on port %s → tmux session %q → container %s (shell: %s)",
+				ttydPort, tmuxSessionName, c.nodeContainerID, ttydShell)
+
+			err := cmd.Start()
+			if err != nil {
+				c.logger.Warnf("ttyd: failed to start: %s — retrying in %s", err, ttydWaitInterval)
+
+				time.Sleep(ttydWaitInterval)
+
+				continue
+			}
+
+			go func(p *os.Process) {
+				<-c.ctx.Done()
+
+				if p != nil {
+					_ = p.Kill()
+				}
+			}(cmd.Process)
+
+			err = cmd.Wait()
+			if err != nil {
+				err := c.ctx.Err()
+				if err != nil {
+					c.logger.Info("ttyd: stopped (context cancelled)")
+
+					return
+				}
+
+				c.logger.Warnf("ttyd: exited: %s — restarting in %s", err, ttydWaitInterval)
+			}
+
+			time.Sleep(ttydWaitInterval)
+		}
+	}()
 }
 
 func (c *clabernetes) reportContainerLaunchFail() {

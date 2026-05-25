@@ -151,6 +151,7 @@ func (r *DeploymentReconciler) Render(
 		configVolumeName,
 		volumeMountsFromCommonSpec,
 		owningTopology,
+		clabernetesConfigs,
 	)
 
 	r.renderDeploymentContainerEnv(
@@ -652,8 +653,24 @@ func (r *DeploymentReconciler) renderDeploymentContainer(
 	configVolumeName string,
 	volumeMountsFromCommonSpec []k8scorev1.VolumeMount,
 	owningTopology *clabernetesapisv1alpha1.Topology,
+	clabernetesConfigs map[string]*clabernetesutilcontainerlab.Config,
 ) {
-	image := owningTopology.Spec.Deployment.LauncherImage
+	// Check per-node launcher image from containerlab topology first
+	image := ""
+	ttydShell := ""
+
+	if clabernetesConfigs != nil && clabernetesConfigs[nodeName] != nil &&
+		clabernetesConfigs[nodeName].Topology.Nodes[nodeName] != nil {
+		image = clabernetesConfigs[nodeName].Topology.Nodes[nodeName].LauncherImage
+		ttydShell = clabernetesConfigs[nodeName].Topology.Nodes[nodeName].TTYDShell
+	}
+
+	// Fall back to spec.deployment.launcherImage
+	if image == "" {
+		image = owningTopology.Spec.Deployment.LauncherImage
+	}
+
+	// Fall back to global config
 	if image == "" {
 		image = r.configManagerGetter().GetLauncherImage()
 	}
@@ -710,12 +727,23 @@ func (r *DeploymentReconciler) renderDeploymentContainer(
 		ImagePullPolicy:          k8scorev1.PullPolicy(imagePullPolicy),
 	}
 
+	if ttydShell != "" {
+		container.Ports = append(
+			container.Ports,
+			k8scorev1.ContainerPort{
+				Name:          "ttyd",
+				ContainerPort: clabernetesconstants.TTYDServicePort,
+				Protocol:      clabernetesconstants.TCP,
+			},
+		)
+	}
+
 	container.VolumeMounts = append(container.VolumeMounts, volumeMountsFromCommonSpec...)
 
 	deployment.Spec.Template.Spec.Containers = []k8scorev1.Container{container}
 }
 
-func (r *DeploymentReconciler) renderDeploymentContainerEnv( //nolint: funlen
+func (r *DeploymentReconciler) renderDeploymentContainerEnv( //nolint:funlen,gocyclo
 	deployment *k8sappsv1.Deployment,
 	nodeName,
 	owningTopologyName string,
@@ -893,6 +921,18 @@ func (r *DeploymentReconciler) renderDeploymentContainerEnv( //nolint: funlen
 		envs = append(
 			envs,
 			globalEnvs...,
+		)
+	}
+
+	if clabernetesConfigs != nil && clabernetesConfigs[nodeName] != nil &&
+		clabernetesConfigs[nodeName].Topology.Nodes[nodeName] != nil &&
+		clabernetesConfigs[nodeName].Topology.Nodes[nodeName].TTYDShell != "" {
+		envs = append(
+			envs,
+			k8scorev1.EnvVar{
+				Name:  "TTYD_SHELL",
+				Value: clabernetesConfigs[nodeName].Topology.Nodes[nodeName].TTYDShell,
+			},
 		)
 	}
 
